@@ -5,8 +5,6 @@
 (def example (slurp (io/resource "day-4-example")))
 (def input (slurp (io/resource "day-4")))
 
-(def xmas-re #"XMAS")
-
 (defn read-input [input]
   (into {}
         (apply concat
@@ -14,40 +12,29 @@
             (for [[x c] (map-indexed vector line)]
               [[x y] c])))))
 
-(read-input example)
+(defn make-crossword [s]
+  (let [lines (s/split-lines s)]
+    [(partial get-in lines) (count lines)]))
 
-(defn crossword-strings [crossword extent]
-  (concat
-   (for [y (range 0 extent)]
-     (apply str (for [x (range 0 extent)]
-        (crossword [x y]))))
-   (for [y (range 0 extent)]
-     (apply str (for [x (reverse (range 0 extent))]
-        (crossword [x y]))))
-   (for [x (range 0 extent)]
-     (apply str (for [y (range 0 extent)]
-        (crossword [x y]))))
-   (for [x (range 0 extent)]
-     (apply str (for [y (reverse (range 0 extent))]
-        (crossword [x y]))))
-   (for [y (range 0 extent)]
-     (apply str (for [a (range 0 extent) :let [c (crossword [a (+ y a)])] :while c] c)))
-   (for [x (range 1 extent)]
-     (apply str (for [a (range 0 extent) :let [c (crossword [(+ x a) a])] :while c] c)))
-   (for [y (range 0 extent)]
-     (apply str (for [a (reverse (range 0 extent)) :let [c (crossword [(+ x a) a])] :while c] c)))))
+(def xmas-lookup
+  (let [n (count "xmas")]
+    (apply mapv vector (for [a (range 0 n)] [[a 0] [a a] [0 a] [(* -1 a) a] [(* -1 a) 0] [(* -1 a) (* -1 a)] [0 (* -1 a)] [a (* -1 a)]]))))
 
-(reduce + (map count-xmas (crossword-strings (read-input example) (count (s/split-lines example)))))
-
-(defn count-xmas [s] (count (re-seq xmas-re s)))
 
 (defn solve-1 [input]
-  (let [rows (read-input input)
-        columns (apply mapv str rows)]
-    (reduce + (map count-xmas (concat rows columns (map s/reverse rows) (map s/reverse columns))))))
+  (let [[crossword n] (make-crossword input)]
+   (reduce + (for [x (range 0 n) y (range 0 n)]
+               (count (filter #{"XMAS"} (map #(->> % (map (comp crossword (partial mapv + [x y]))) (apply str)) xmas-lookup)))))))
 
-(let [rows (read-input example)
-      columns (apply mapv str rows)]
-  (count (concat rows columns (map s/reverse rows) (map s/reverse columns))))
-
-(solve-1 example)
+(defn solve-2 [input]
+  (let [extent (count (s/split-lines input))
+        crossword (read-input input)]
+    (count (filter identity
+                   (for [y (range 0 extent) x (range 0 extent)
+                         :let [s1 (str (crossword [(dec x) (dec y)])
+                                       (crossword [x y])
+                                       (crossword [(inc x) (inc y)]))
+                               s2 (str (crossword [(inc x) (dec y)])
+                                       (crossword [x y])
+                                       (crossword [(dec x) (inc y)]))]]
+                     (every? #{"MAS" "SAM"} [s1 s2]))))))
