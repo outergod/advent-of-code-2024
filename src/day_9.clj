@@ -38,11 +38,10 @@
   (let [parsed (map #(-> % str parse-long) input)]
     (dissoc
      (reduce (fn [{:keys [position] :as disk} [i n]]
-               (assoc
-                (if (even? i)
-                  (update disk :files conj {:size n :position position})
-                  (update disk :space conj {:size n :position position}))
-                :position (+ position n)))
+               (let [target (if (even? i) :files :space)]
+                 (assoc
+                  (update disk target conj {:size n :position position})
+                  :position (+ position n))))
              {:files [] :space [] :position 0} (map vector (range) parsed))
      :position)))
 
