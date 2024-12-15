@@ -1,7 +1,8 @@
 (ns day-15
   (:require
    [clojure.java.io :as io]
-   [clojure.string :as s]))
+   [clojure.string :as s]
+   [clojure.set :as set]))
 
 (def example (s/trim-newline (slurp (io/resource "day-15-example"))))
 (def example-mini (s/trim-newline (slurp (io/resource "day-15-example-mini"))))
@@ -54,9 +55,9 @@
               (update :robot (fn [old] (if (= entity :robot) next-pos old))))))
       state)))
 
-(defn move-all-1 [state]
+(defn move-all [state movefn]
   (reduce (fn [{:keys [robot] :as state} movement]
-            (let [state (move-1 robot movement state)]
+            (let [state (movefn robot movement state)]
               (update state :visuals conj (visualize-1 state))))
           (assoc state :visuals [])
           (state :movements)))
@@ -67,7 +68,7 @@
               (+ acc x (* y 100))
               acc))
           0
-          (:entities (move-all-1 (parse-1 input)))))
+          (:entities (move-all (parse-1 input) move-1))))
 
 (defn parse-layout-2 [layout]
   (let [extent-y (count layout)
@@ -84,6 +85,9 @@
                         (assoc-in [:entities id-parent] :box)
                         (assoc-in [:entities id-left] :box-left)
                         (assoc-in [:entities id-right] :box-right)
+                        (assoc-in [:parents id-parent] #{id-left id-right})
+                        (assoc-in [:children id-left] id-parent)
+                        (assoc-in [:children id-right] id-parent)
                         (assoc-in [:positions [(* x 2) y]] id-left)
                         (assoc-in [:positions [(inc (* x 2)) y]] id-right)
                         (update :id (partial + 3))))
@@ -100,8 +104,6 @@
   (let [[layout _ movements] (partition-by s/blank? (s/split-lines input))]
     (assoc (parse-layout-2 (vec layout)) :movements (parse-movements (s/join "" movements)))))
 
-(parse-2 example-mini)
-
 (defn visualize-2 [state]
   (let [{:keys [extents entities positions]} state
         [extent-x extent-y] extents]
@@ -116,6 +118,45 @@
                            (range extent-x))))
          (range extent-y))))
 
-(visualize-2 (parse-2 example))
+(defn move-collect [pos movement state]
+  (let [{:keys [positions entities children parents]} state
+        rev-positions (set/map-invert positions)]
+    (loop [open #{pos} closed #{} acc #{}]
+      (let [pos (first open)
+            open (disj open pos)
+            entity (positions pos)]
+        (if pos
+          (case (entities entity)
+            :robot (recur (conj open (mapv + pos movement)) (conj closed pos) (conj acc entity))
 
-(parse-2 example)
+            (:box-left :box-right)
+            (let [walls (parents (children entity))
+                  positions (set (map #(mapv + movement (rev-positions %)) walls))]
+              (recur (into open (set/difference positions closed))
+                     (set/union closed positions)
+                     (into acc walls)))
+
+            :wall #{}
+
+            (recur open (conj closed pos) acc))
+          acc)))))
+
+(defn move-entities [entities movement state]
+  (update state :positions #(into {} (map (fn [[k v]] [(if (entities v) (mapv + k movement) k) v]) %))))
+
+(defn move [pos movement state]
+  (let [state (move-entities (move-collect pos movement state) movement state)
+        robot-id (some (fn [[k v]] (when (= v :robot) k)) (state :entities))
+        rev-positions (set/map-invert (state :positions))]
+    (assoc state :robot (rev-positions robot-id))))
+
+(defn solve-2 [input]
+  (let [state (move-all (parse-2 input) move)
+        rev-positions (set/map-invert (state :positions))]
+    (reduce (fn [acc [id type]]
+              (if (= :box-left type)
+                (let [[x y] (rev-positions id)]
+                  (+ acc x (* y 100)))
+                acc))
+            0
+            (:entities state))))
