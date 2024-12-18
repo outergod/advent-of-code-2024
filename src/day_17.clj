@@ -33,7 +33,7 @@
   (fn [operand {:keys [registers] :as state}]
     (-> state
         (assoc-in [:registers id]
-                  (int (/ (registers"A")
+                  (int (/ (registers "A")
                           (math/pow 2 (combo operand registers)))))
         (update :ip (partial + 2)))))
 
@@ -70,20 +70,6 @@
 
 (def opcode-instruction [adv bxl bst jnc bxc out bdv cdv])
 
-(let [{:keys [ip program] :as state} {:ip 0 :registers {"A" 10 "B" 0 "C" 9} :program [5 0 5 1 5 4] :output []}
-      instruction (opcode-instruction (program ip))
-      operand (program (inc ip))]
-  [(program ip) operand (instruction operand state)])
-
-(let [state (parse example)]
-  (loop [{:keys [ip program output] :as state} state]
-    (if (>= ip (count program))
-      output
-      (let [instruction (opcode-instruction (program ip))
-            operand (program (inc ip))]
-        (println state)
-        (recur (instruction operand state))))))
-
 (defn run [state]
   (loop [{:keys [ip program output] :as state} state]
     (if (>= ip (count program))
@@ -95,4 +81,35 @@
 (defn solve-1 [input]
   (s/join "," (run (parse input))))
 
-(solve-1 input)
+(defn shift [coll]
+  (reduce (fn [acc [i n]]
+            (+ (bit-shift-left n (* 3 i)) acc))
+          0
+          (map-indexed vector coll)))
+
+(defn find-program [state]
+  (let [{:keys [program]} state
+        program (reverse program)]
+    (loop [total 0 acc nil limit 100]
+      (println "current" total acc)
+      (cond
+        (= acc program) total
+        (= (count acc) (count program)) nil
+        (zero? limit) :abort
+
+        :else
+        (if-let [[total acc]
+                 (first
+                  (filter (fn [[_ _ output]] (every? identity (map = program output)))
+                          (map (fn [n]
+                                 (let [acc (cons n acc)
+                                       candidate (shift acc)]
+                                   (println acc candidate (reverse (run (assoc-in state [:registers "A"] candidate))) "vs" program)
+                                   [candidate acc (reverse (run (assoc-in state [:registers "A"] candidate)))]))
+                               (range 1 8))))]
+          (recur total acc (dec limit))
+          :no)))))
+
+(find-program (parse input))
+
+(every? identity (map = [0] '(0)))
