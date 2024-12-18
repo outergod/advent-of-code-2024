@@ -16,8 +16,8 @@
      (let [[_ register n] (re-matches register-re line)
            [_ program] (re-matches program-re line)]
        (cond
-         register (assoc-in acc [:registers register] (parse-long n))
-         program (assoc acc :program (mapv parse-long (s/split program #",")))
+         register (assoc-in acc [:registers register] (biginteger n))
+         program (assoc acc :program (mapv biginteger (s/split program #",")))
          :else acc)))
    {:registers {} :ip 0 :output []}
    (s/split-lines input)))
@@ -33,8 +33,8 @@
   (fn [operand {:keys [registers] :as state}]
     (-> state
         (assoc-in [:registers id]
-                  (int (/ (registers "A")
-                          (math/pow 2 (combo operand registers)))))
+                  (biginteger (/ (registers "A")
+                                 (math/pow 2 (combo operand registers)))))
         (update :ip (partial + 2)))))
 
 (def adv (xdv "A"))
@@ -44,13 +44,13 @@
 (defn bxl [operand {:keys [registers] :as state}]
   (-> state
       (assoc-in [:registers "B"]
-                (bit-xor (registers "B") operand))
+                (.xor (registers "B") (biginteger operand)))
       (update :ip (partial + 2))))
 
 (defn bst [operand {:keys [registers] :as state}]
   (-> state
       (assoc-in [:registers "B"]
-                (bit-and (mod (combo operand registers) 8) 2r111))
+                (.and (.mod (combo operand registers) (biginteger 8)) (biginteger 2r111)))
       (update :ip (partial + 2))))
 
 (defn jnc [operand {:keys [registers] :as state}]
@@ -60,12 +60,12 @@
 
 (defn bxc [_ {:keys [registers] :as state}]
   (-> state
-      (update-in [:registers "B"] bit-xor (registers "C"))
+      (update-in [:registers "B"] #(.xor %1 %2) (registers "C"))
       (update :ip (partial + 2))))
 
 (defn out [operand {:keys [registers] :as state}]
   (-> state
-      (update :output conj (mod (combo operand registers) 8))
+      (update :output conj (int (mod (combo operand registers) 8)))
       (update :ip (partial + 2))))
 
 (def opcode-instruction [adv bxl bst jnc bxc out bdv cdv])
@@ -83,33 +83,33 @@
 
 (defn shift [coll]
   (reduce (fn [acc [i n]]
-            (+ (bit-shift-left n (* 3 i)) acc))
-          0
+            (.add (.shiftLeft (biginteger n) (* 3 i)) acc))
+          (biginteger 0)
           (map-indexed vector coll)))
 
 (defn find-program [state]
   (let [{:keys [program]} state
         program (reverse program)]
-    (loop [total 0 acc nil limit 100]
-      (println "current" total acc)
+    (loop [total 0 acc nil output []]
       (cond
-        (= acc program) total
-        (= (count acc) (count program)) nil
-        (zero? limit) :abort
+        (= output program) total
 
         :else
-        (if-let [[total acc]
+        (if-let [[total acc output]
                  (first
                   (filter (fn [[_ _ output]] (every? identity (map = program output)))
                           (map (fn [n]
                                  (let [acc (cons n acc)
                                        candidate (shift acc)]
-                                   (println acc candidate (reverse (run (assoc-in state [:registers "A"] candidate))) "vs" program)
                                    [candidate acc (reverse (run (assoc-in state [:registers "A"] candidate)))]))
                                (range 1 8))))]
-          (recur total acc (dec limit))
-          :no)))))
+          (recur total acc output)
+          (some (fn [[candidate output]] (when (= program output) candidate))
+                (for [x (range 0 8) y (range 0 8) z (range 0 8)]
+                  (let [acc (concat (list x y z) (rest acc))
+                        candidate (shift acc)
+                        output (reverse (run (assoc-in state [:registers "A"] candidate)))]
+                    [candidate output]))))))))
 
-(find-program (parse input))
-
-(every? identity (map = [0] '(0)))
+(defn solve-2 [input]
+  (find-program (parse input)))
