@@ -2,7 +2,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as s]
-   [aoc :refer [fix]]))
+   [aoc :refer [fix pairs]]))
 
 (def example (s/trim-newline (slurp (io/resource "day-21-example"))))
 (def input (s/trim-newline (slurp (io/resource "day-21"))))
@@ -14,11 +14,6 @@
   {:obstacles #{[0 0]} :buttons {\^ [1 0] \A [2 0] \< [0 1] \v [1 1] \> [2 1]}})
 
 (def translate {[0 1] \v [0 -1] \^ [1 0] \> [-1 0] \<})
-
-(defn pairs [coll]
-  (take-while #(= 2 (count %))
-              (map (partial take 2)
-                   (iterate next coll))))
 
 (def path
   (memoize

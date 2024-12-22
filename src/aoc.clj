@@ -109,3 +109,10 @@
                 next (filter (fn [[[path direction] _]] (not (closed [(first path) direction]))) (conj turns forward))]
             (recur (into open next) closed best paths))))
       [best paths])))
+
+(defn tuples [n coll]
+  (take-while #(= n (count %))
+              (map (partial take n)
+                   (iterate next coll))))
+
+(def pairs (partial tuples 2))
