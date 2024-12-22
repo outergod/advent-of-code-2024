@@ -1,7 +1,7 @@
 (ns aoc
   (:require
    [clojure.string :as s]
-   [clojure.data.priority-map :refer [priority-map-keyfn]]))
+   [clojure.data.priority-map :refer [priority-map priority-map-keyfn]]))
 
 (defmacro traced-map [s f & colls]
   `(let [n# (dec (apply max (map count (list ~@colls))))]
@@ -85,3 +85,27 @@
 (defn a* [start goal obstacles extents limit]
   (last (take limit (take-while (comp #{:continue :finish} :mode)
                                 (a*-seq start goal extents obstacles)))))
+
+(defn turn [[x y]] [[(* -1 y) x] [y (* -1 x)]])
+
+(defn path [start end extents obstacles]
+  (loop [open (priority-map [(list start) [1 0]] 0) closed #{} best nil paths []]
+    (if-let [[[path direction] score] (first open)]
+      (let [open (dissoc open [path direction])
+            pos (first path)
+            closed (conj closed [pos direction])]
+        (cond
+          (or (not (in-limits? pos extents)) (obstacles pos) (and best (> score best)))
+          (recur open closed best paths)
+
+          (= end pos)
+          (if (or (nil? best) (< score best))
+            (recur open closed score [path])
+            (recur open closed score (conj paths path)))
+
+          :else
+          (let [forward [[(conj path (mapv + pos direction)) direction] (inc score)]
+                turns (map #(vector [path %1] %2) (turn direction) (repeat (+ score 1000)))
+                next (filter (fn [[[path direction] _]] (not (closed [(first path) direction]))) (conj turns forward))]
+            (recur (into open next) closed best paths))))
+      [best paths])))
