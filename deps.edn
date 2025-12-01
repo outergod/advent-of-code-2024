@@ -1,5 +1,5 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.3"}
+ :deps {org.clojure/clojure {:mvn/version "1.12.3"}
         org.clojure/math.combinatorics {:mvn/version "0.3.0"}
         org.clojure/data.priority-map {:mvn/version "1.2.0"}}
  :aliases
