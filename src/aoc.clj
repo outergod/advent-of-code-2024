@@ -1,7 +1,8 @@
 (ns aoc
   (:require
    [clojure.string :as s]
-   [clojure.data.priority-map :refer [priority-map priority-map-keyfn]]))
+   [clojure.data.priority-map :refer [priority-map priority-map-keyfn]]
+   [clojure.math :as math]))
 
 (defmacro traced-map [s f & colls]
   `(let [n# (dec (apply max (map count (list ~@colls))))]
@@ -24,13 +25,13 @@
         extent-y (count layout)
         extent-x (count (first layout))]
     (reduce (fn [acc [x y]]
-             (case (get-in layout [y x])
-               \# (update acc :walls conj [x y])
-               \S (assoc acc :start [x y])
-               \E (assoc acc :end [x y])
-               \. (update acc :floor conj [x y])))
-           {:walls #{} :floor #{} :extents [extent-y extent-y]}
-           (for [y (range 0 extent-y) x (range 0 extent-x)] [x y]))))
+              (case (get-in layout [y x])
+                \# (update acc :walls conj [x y])
+                \S (assoc acc :start [x y])
+                \E (assoc acc :end [x y])
+                \. (update acc :floor conj [x y])))
+            {:walls #{} :floor #{} :extents [extent-y extent-y]}
+            (for [y (range 0 extent-y) x (range 0 extent-x)] [x y]))))
 
 (defn euclidian-distance
   ([[x y]] (Math/sqrt (+ (Math/pow x 2) (Math/pow y 2))))
@@ -116,3 +117,13 @@
                    (iterate next coll))))
 
 (def pairs (partial tuples 2))
+
+(def factors
+  (memoize
+   (fn [n]
+     (into (sorted-set)
+           (mapcat (fn [x] [x (/ n x)])
+                   (filter #(zero? (rem n %)) (range 1 (inc (Math/sqrt n)))))))))
+
+(defn digits [n]
+  (int (inc (math/log10 n))))
