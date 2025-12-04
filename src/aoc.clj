@@ -130,3 +130,9 @@
 
 (defn digits [n]
   (int (inc (math/log10 n))))
+
+(defn until-fixed [f x]
+  (->> (iterate f x)
+       (partition 2 1)
+       (drop-while (fn [[a b]] (not= a b)))
+       ffirst))
