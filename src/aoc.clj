@@ -39,8 +39,11 @@
 
 (defn in-limits? [[x y] [w h]] (and (>= x 0) (>= y 0) (< x w) (< y h)))
 
+(def neighbors-4 [[0 1] [1 0] [0 -1] [-1 0]])
+(def neighbors-8 [[0 1] [1 0] [0 -1] [-1 0] [1 -1] [-1 1] [1 1] [-1 -1]])
+
 (defn neighbors [[x y]]
-  (map (fn [[a b]] [(+ x a) (+ y b)]) [[0 1] [1 0] [0 -1] [-1 0]]))
+  (map (fn [[a b]] [(+ x a) (+ y b)]) neighbors-4))
 
 (defn a*-seq [[x0 y0] [x1 y1] [w h] obstacles]
   (let [in-limits? #(in-limits? % [w h])]
